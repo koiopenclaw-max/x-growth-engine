@@ -346,9 +346,24 @@ function validateInput(payload: unknown): GenerateArticleRequest | string {
   }
 }
 
+function extractJson(raw: string): string {
+  // Strip markdown code fences if present
+  const fenceMatch = raw.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/)
+  if (fenceMatch) {
+    return fenceMatch[1].trim()
+  }
+  // Try to find JSON object/array directly
+  const jsonMatch = raw.match(/(\{[\s\S]*\}|\[[\s\S]*\])/)
+  if (jsonMatch) {
+    return jsonMatch[1].trim()
+  }
+  return raw.trim()
+}
+
 function validateResponse(mode: ArticleMode, rawText: string) {
   try {
-    const parsed = JSON.parse(rawText) as Record<string, unknown>
+    const cleaned = extractJson(rawText)
+    const parsed = JSON.parse(cleaned) as Record<string, unknown>
 
     if (mode === 'outline') {
       const sections = Array.isArray(parsed.sections)
