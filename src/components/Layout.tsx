@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import {
   BarChart3,
   CalendarRange,
+  FileText,
   LogOut,
   Menu,
   PenSquare,
@@ -16,6 +17,7 @@ const navigation = [
   { to: '/', label: 'Dashboard', icon: BarChart3, end: true },
   { to: '/calendar', label: 'Calendar', icon: CalendarRange },
   { to: '/create', label: 'Create Post', icon: PenSquare },
+  { to: '/articles', label: 'Articles', icon: FileText },
   { to: '/analytics', label: 'Analytics', icon: Sparkles },
 ]
 

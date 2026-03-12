@@ -1,19 +1,27 @@
 import { Link } from 'react-router-dom'
-import { Activity, CalendarDays, PencilLine } from 'lucide-react'
+import { Activity, CalendarDays, FileText, PencilLine } from 'lucide-react'
 
-const stats = [
-  { label: 'Posts in pipeline', value: '0', hint: 'Drafts and scheduled posts will appear here.' },
-  { label: 'This week impressions', value: '0', hint: 'Snapshot pending analytics integration.' },
-  { label: 'Engagement actions logged', value: '0', hint: 'Replies, follows, and DMs will roll up here.' },
-]
+import { useArticles } from '../hooks/useArticles'
 
 const quickActions = [
   { to: '/create', label: 'Create Post', icon: PencilLine },
+  { to: '/articles', label: 'Open Articles', icon: FileText },
   { to: '/calendar', label: 'View Calendar', icon: CalendarDays },
   { to: '/analytics', label: 'Log Engagement', icon: Activity },
 ]
 
 export default function DashboardPage() {
+  const { articles, analytics } = useArticles()
+  const publishedArticles = articles.filter((article) => article.status === 'published').length
+  const totalReads = analytics.reduce((sum, entry) => sum + entry.reads, 0)
+
+  const stats = [
+    { label: 'Posts in pipeline', value: '0', hint: 'Drafts and scheduled posts will appear here.' },
+    { label: 'Published articles', value: String(publishedArticles), hint: 'Long-form pieces currently live on X.' },
+    { label: 'Article reads', value: String(totalReads), hint: 'Combined reads across all tracked articles.' },
+    { label: 'Engagement actions logged', value: '0', hint: 'Replies, follows, and DMs will roll up here.' },
+  ]
+
   return (
     <div className="space-y-6">
       <section className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-glow">
@@ -25,7 +33,7 @@ export default function DashboardPage() {
         </p>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-3">
+      <section className="grid gap-4 xl:grid-cols-4">
         {stats.map((stat) => (
           <article key={stat.label} className="rounded-[1.75rem] border border-white/10 bg-slate-900/80 p-5">
             <p className="text-sm text-slate-400">{stat.label}</p>
@@ -46,7 +54,7 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {quickActions.map(({ to, label, icon: Icon }) => (
             <Link
               key={label}

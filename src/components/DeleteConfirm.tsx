@@ -4,6 +4,7 @@ interface DeleteConfirmProps {
   isOpen: boolean
   title?: string
   description?: string
+  confirmLabel?: string
   loading?: boolean
   onCancel: () => void
   onConfirm: () => void
@@ -13,6 +14,7 @@ export function DeleteConfirm({
   isOpen,
   title = 'Delete post?',
   description = 'This action cannot be undone.',
+  confirmLabel = 'Delete post',
   loading = false,
   onCancel,
   onConfirm,
@@ -51,7 +53,7 @@ export function DeleteConfirm({
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-400 px-4 py-3 text-sm font-medium text-slate-950 transition hover:bg-rose-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
-            Delete post
+            {confirmLabel}
           </button>
         </div>
       </div>
