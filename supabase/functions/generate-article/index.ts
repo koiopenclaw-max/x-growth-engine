@@ -23,6 +23,7 @@ interface HookRequest {
   title: string
   pillar: string
   topic?: string
+  tone?: string
 }
 
 interface ImproveRequest {
@@ -42,6 +43,7 @@ interface PromotionRequest {
   title: string
   summary: string
   key_points?: string[]
+  topic?: string
 }
 
 type GenerateArticleRequest =
@@ -100,6 +102,9 @@ function buildSystemPrompt(mode: ArticleMode) {
       ...base,
       'Return exactly {"sections":[{"title":"string","description":"string"}]}.',
       'Create 5 to 7 sections with specific, useful titles and compact descriptions.',
+      'Use the provided topic and context to produce tailored sections, not generic blog-template headings.',
+      'Pull in personal experiences, products, examples, case studies, and details explicitly mentioned in the context.',
+      'Build a story arc with momentum: setup, tension or insight, proof, and takeaway.',
     ].join(' ')
   }
 
@@ -109,6 +114,11 @@ function buildSystemPrompt(mode: ArticleMode) {
       'Return exactly {"content":"string"}.',
       'Write a substantial section between 500 and 1500 words unless the context clearly suggests a shorter section.',
       'Use markdown-friendly formatting and concrete examples where helpful.',
+      'Follow the section-specific instructions closely.',
+      'Use the broader article context as background, but prioritize the requested section focus.',
+      'Respect the requested tone exactly.',
+      'Include specific examples, numbers, names, and personal details when they are available in the context.',
+      'When the context describes the author’s own experience, write in first person.',
     ].join(' ')
   }
 
@@ -117,6 +127,8 @@ function buildSystemPrompt(mode: ArticleMode) {
       ...base,
       'Return exactly {"hooks":["string","string","string"]}.',
       'Generate 3 opening paragraph options that can lead the article.',
+      'Use the full topic and context so each hook feels specific to the story, examples, and claims provided.',
+      'Respect the requested tone if one is provided.',
     ].join(' ')
   }
 
@@ -141,6 +153,7 @@ function buildSystemPrompt(mode: ArticleMode) {
     'Return exactly {"tweets":["string"]}.',
     'Generate 3 to 5 promotion tweets that feel native to X and point readers toward the article.',
     'Keep each tweet concise enough for X posting.',
+    'Use the provided topic and context to make the tweets specific, concrete, and aligned with the actual story.',
   ].join(' ')
 }
 
@@ -161,7 +174,13 @@ function buildUserPrompt(input: GenerateArticleRequest) {
   }
 
   if (input.mode === 'hook') {
-    return [`Mode: hook`, `Title: ${input.title}`, `Pillar: ${input.pillar}`, `Topic: ${input.topic ?? 'None provided.'}`].join('\n')
+    return [
+      `Mode: hook`,
+      `Title: ${input.title}`,
+      `Pillar: ${input.pillar}`,
+      `Topic: ${input.topic ?? 'None provided.'}`,
+      `Tone: ${input.tone ?? 'Professional'}`,
+    ].join('\n')
   }
 
   if (input.mode === 'improve') {
@@ -175,6 +194,7 @@ function buildUserPrompt(input: GenerateArticleRequest) {
   return [
     `Mode: promotion`,
     `Title: ${input.title}`,
+    `Topic: ${input.topic ?? 'None provided.'}`,
     `Summary: ${input.summary}`,
     `Key points: ${input.key_points?.join(' | ') || 'None provided.'}`,
   ].join('\n')
@@ -252,11 +272,20 @@ function validateInput(payload: unknown): GenerateArticleRequest | string {
       return 'The "pillar" field is required.'
     }
 
+    if (body.topic !== undefined && typeof body.topic !== 'string') {
+      return 'The "topic" field must be a string.'
+    }
+
+    if (body.tone !== undefined && typeof body.tone !== 'string') {
+      return 'The "tone" field must be a string.'
+    }
+
     return {
       mode: 'hook',
       title: body.title.trim(),
       pillar: body.pillar.trim(),
       topic: typeof body.topic === 'string' && body.topic.trim() ? body.topic.trim() : undefined,
+      tone: typeof body.tone === 'string' && body.tone.trim() ? body.tone.trim() : undefined,
     }
   }
 
@@ -304,11 +333,16 @@ function validateInput(payload: unknown): GenerateArticleRequest | string {
     return 'The "key_points" field must be an array of strings.'
   }
 
+  if (body.topic !== undefined && typeof body.topic !== 'string') {
+    return 'The "topic" field must be a string.'
+  }
+
   return {
     mode: 'promotion',
     title: body.title.trim(),
     summary: body.summary.trim(),
     key_points: Array.isArray(body.key_points) ? body.key_points.map((item) => String(item).trim()).filter(Boolean) : undefined,
+    topic: typeof body.topic === 'string' && body.topic.trim() ? body.topic.trim() : undefined,
   }
 }
 

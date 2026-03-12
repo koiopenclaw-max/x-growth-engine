@@ -45,10 +45,21 @@ interface EditorState {
   seo_keywords: string[]
   meta_description: string
   notes: string
+  topic_context: string
+  tone: string
   outline: ArticleSection[]
   ai_generated: boolean
   ai_prompts: AiPromptEntry[]
 }
+
+const TONE_OPTIONS = [
+  'Professional',
+  'Witty & Casual',
+  'Tutorial / Step-by-step',
+  'Storytelling',
+  'Data-driven / Analytical',
+  'Provocative / Contrarian',
+] as const
 
 const STATUSES: ArticleStatus[] = ['draft', 'published', 'archived']
 
@@ -63,6 +74,8 @@ function buildEditorState(article: Article): EditorState {
     seo_keywords: article.seo_keywords ?? [],
     meta_description: article.meta_description ?? '',
     notes: article.notes ?? '',
+    topic_context: article.notes ?? '',
+    tone: 'Professional',
     outline: article.outline,
     ai_generated: article.ai_generated,
     ai_prompts: article.ai_prompts,
@@ -142,6 +155,7 @@ export default function ArticleEditorPage() {
   const [isDirty, setIsDirty] = useState(false)
   const [initializedArticleId, setInitializedArticleId] = useState<string | null>(null)
   const [improveInstruction, setImproveInstruction] = useState('Make this section sharper, clearer, and more opinionated.')
+  const [sectionInstructions, setSectionInstructions] = useState<Record<string, string>>({})
 
   const autosaveTimerRef = useRef<number | null>(null)
   const selectedPillar = pillars.find((pillar) => pillar.id === (draft?.pillar_id ?? article?.pillar_id ?? ''))
@@ -161,6 +175,7 @@ export default function ArticleEditorPage() {
       setAiError(null)
       setSaveError(null)
       setIsDirty(false)
+      setSectionInstructions({})
     }
   }, [article, draft, initializedArticleId, isDirty])
 
@@ -532,6 +547,22 @@ export default function ArticleEditorPage() {
                     placeholder="Section title"
                     className="mt-4 w-full rounded-[1.25rem] border border-white/10 bg-slate-950/50 px-4 py-3 text-lg text-white outline-none transition focus:border-cyan-300/40"
                   />
+                  <label className="mt-4 block">
+                    <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">AI Instructions For This Section</span>
+                    <textarea
+                      value={sectionInstructions[section.id] ?? ''}
+                      onFocus={() => setSelectedSectionId(section.id)}
+                      onChange={(event) =>
+                        setSectionInstructions((current) => ({
+                          ...current,
+                          [section.id]: event.target.value,
+                        }))
+                      }
+                      rows={3}
+                      placeholder="What should this section cover? Any specific examples, data, or stories to include..."
+                      className="w-full rounded-[1.25rem] border border-white/10 bg-slate-950/50 px-4 py-3 text-sm leading-6 text-slate-200 outline-none transition focus:border-cyan-300/40"
+                    />
+                  </label>
                   <textarea
                     value={section.content}
                     onFocus={() => setSelectedSectionId(section.id)}
@@ -599,6 +630,32 @@ export default function ArticleEditorPage() {
                 </select>
               </label>
 
+              <label className="block">
+                <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">Topic &amp; Context</span>
+                <textarea
+                  value={draft.topic_context}
+                  onChange={(event) => updateDraft((current) => ({ ...current, topic_context: event.target.value }))}
+                  rows={5}
+                  placeholder="Describe what this article is about, your personal experience, specific points you want to cover, examples to include..."
+                  className="w-full rounded-[1.5rem] border border-white/10 bg-white/5 px-4 py-3 text-sm leading-6 text-slate-100 outline-none transition focus:border-cyan-300/40"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">Tone</span>
+                <select
+                  value={draft.tone}
+                  onChange={(event) => updateDraft((current) => ({ ...current, tone: event.target.value }))}
+                  className="w-full rounded-[1.5rem] border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-300/40"
+                >
+                  {TONE_OPTIONS.map((toneOption) => (
+                    <option key={toneOption} value={toneOption}>
+                      {toneOption}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
               <div className="grid gap-3">
                 <button
                   type="button"
@@ -613,7 +670,7 @@ export default function ArticleEditorPage() {
                         mode: 'outline',
                         title: draft.title.trim(),
                         pillar: pillarName,
-                        topic: draft.subtitle.trim() || draft.notes.trim() || undefined,
+                        topic: draft.topic_context.trim() || undefined,
                       })
 
                       return { kind: 'outline', payload }
@@ -639,8 +696,17 @@ export default function ArticleEditorPage() {
                         title: draft.title.trim(),
                         pillar: pillarName,
                         section_title: activeSection.title.trim(),
-                        section_context: [draft.subtitle, draft.content, activeSection.content].filter(Boolean).join('\n\n') || undefined,
-                        tone: 'clear, strategic, direct',
+                        section_context:
+                          [
+                            draft.topic_context.trim(),
+                            sectionInstructions[activeSection.id]?.trim(),
+                            draft.subtitle.trim(),
+                            draft.content.trim(),
+                            activeSection.content.trim(),
+                          ]
+                            .filter(Boolean)
+                            .join('\n\n') || undefined,
+                        tone: draft.tone,
                       })
 
                       return { kind: 'section', payload, sectionId: activeSection.id }
@@ -665,8 +731,9 @@ export default function ArticleEditorPage() {
                         mode: 'hook',
                         title: draft.title.trim(),
                         pillar: pillarName,
-                        topic: draft.subtitle.trim() || draft.notes.trim() || undefined,
-                      })
+                        topic: draft.topic_context.trim() || undefined,
+                        tone: draft.tone,
+                      } as Parameters<typeof generateArticle>[0])
 
                       return { kind: 'hook', payload }
                     })
@@ -676,6 +743,24 @@ export default function ArticleEditorPage() {
                   <FileText className="h-4 w-4" />
                   Generate Hook
                 </button>
+
+                {activeSection ? (
+                  <label className="block rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
+                    <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">AI Instructions For This Section</span>
+                    <textarea
+                      value={sectionInstructions[activeSection.id] ?? ''}
+                      onChange={(event) =>
+                        setSectionInstructions((current) => ({
+                          ...current,
+                          [activeSection.id]: event.target.value,
+                        }))
+                      }
+                      rows={3}
+                      placeholder="What should this section cover? Any specific examples, data, or stories to include..."
+                      className="w-full bg-transparent text-sm leading-6 text-slate-200 outline-none"
+                    />
+                  </label>
+                ) : null}
 
                 <label className="block rounded-[1.5rem] border border-white/10 bg-white/5 p-4">
                   <span className="mb-2 block text-xs uppercase tracking-[0.2em] text-slate-400">Improve instruction</span>
@@ -746,9 +831,10 @@ export default function ArticleEditorPage() {
                       const payload = await generateArticle<GenerateArticlePromotionResult>({
                         mode: 'promotion',
                         title: draft.title.trim(),
-                        summary: [draft.subtitle, draft.content].filter(Boolean).join('\n\n'),
+                        summary: [draft.topic_context, draft.subtitle, draft.content].filter(Boolean).join('\n\n'),
                         key_points: draft.outline.map((section) => section.title).filter(Boolean),
-                      })
+                        topic: draft.topic_context.trim() || undefined,
+                      } as Parameters<typeof generateArticle>[0])
 
                       return { kind: 'promotion', payload }
                     })
