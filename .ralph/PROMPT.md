@@ -1,134 +1,126 @@
-# Task 2: React App Scaffolding
+# Task 3: Content Calendar UI
 
 ## Objective
-Set up a complete React application with Vite, Tailwind CSS, Supabase client, authentication, and routing.
+Build a fully functional Content Calendar page with CRUD operations for posts, pillar filtering, status management, and a clean calendar/list view.
 
 ## Context
-X Growth Engine is a content strategy platform for growing an X (Twitter) account. The Supabase backend is already set up with 5 tables (content_pillars, posts, post_analytics, account_snapshots, engagement_log). Now we need the frontend foundation.
+X Growth Engine is a content strategy platform. The Supabase backend has these tables: `posts`, `content_pillars`, `post_analytics`, `account_snapshots`, `engagement_log`. The React frontend is scaffolded with Vite + Tailwind + Supabase Auth + React Router. The Calendar page (`src/pages/Calendar.tsx`) is currently a placeholder.
 
-## Tech Stack
-- **React 18** with TypeScript
-- **Vite** as build tool
-- **Tailwind CSS v3** for styling
-- **React Router v6** for routing
-- **Supabase JS client** (@supabase/supabase-js v2)
-- **Lucide React** for icons
+## Existing Code
+- `src/lib/supabase.ts` — Supabase client (already configured)
+- `src/types/database.ts` — TypeScript types for all tables
+- `src/contexts/AuthContext.tsx` — Auth context with useAuth hook
+- `src/pages/Calendar.tsx` — Placeholder (replace entirely)
+- `src/components/Layout.tsx` — Sidebar layout (don't modify)
+- Tailwind is configured with dark theme, cyan accents, surface colors
+
+## Design System (match existing)
+- Dark theme: bg-slate-900/80, bg-surface-950, border-white/10
+- Accent: cyan-300, cyan-400
+- Cards: rounded-[2rem] or rounded-[1.75rem], border border-white/10
+- Text: uppercase tracking-[0.3em] for labels, font-serif for headings
+- Buttons: rounded-2xl, bg-cyan-400 text-slate-950 for primary
+- Use Lucide React icons (already installed)
 
 ## Requirements
 
-### 1. Initialize Vite + React + TypeScript
-- Run `npm create vite@latest . -- --template react-ts` (use current directory)
-- Install all dependencies
+### 1. Calendar Page (`src/pages/Calendar.tsx`)
+Replace placeholder with full content calendar featuring:
 
-### 2. Tailwind CSS Setup
-- Install and configure Tailwind CSS v3
-- Create a clean base stylesheet with sensible defaults
-- Dark mode support via class strategy
+**Header Section:**
+- Title "Content Calendar" with pillar distribution bar (visual % of each pillar, colored)
+- Filter buttons: All | by status (Draft, Scheduled, Posted, Archived)
+- Filter by pillar (dropdown or buttons, colored by pillar color)
+- "New Post" button → opens create/edit modal
 
-### 3. Supabase Client
-Create `src/lib/supabase.ts`:
+**View: List/Card View**
+- Display posts as cards in a list, grouped by date (scheduled_for or created_at)
+- Each card shows:
+  - Post content (truncated to 2 lines)
+  - Pillar badge (colored dot + name)
+  - Status badge (colored: draft=gray, scheduled=blue, posted=green, archived=red)
+  - Post type badge (tweet/thread/reply/quote/poll)
+  - Scheduled date/time
+  - Quick actions: Edit, Delete, Change Status
+- Empty state when no posts
+
+### 2. Post Create/Edit Modal (`src/components/PostModal.tsx`)
+A modal dialog for creating and editing posts:
+- **Content** textarea (required, with character count — X limit is 280 for tweets)
+- **Pillar** select dropdown (load from content_pillars table)
+- **Post Type** select (tweet, thread, reply, quote, poll)
+- **Status** select (draft, scheduled, posted, archived)
+- **Scheduled For** datetime picker (only shown when status is "scheduled")
+- **X Post URL** text input (only shown when status is "posted")
+- **Notes** textarea (optional)
+- **AI Generated** checkbox
+- Save / Cancel buttons
+- Loading state during save
+- Validation: content required, scheduled_for required if status=scheduled
+
+### 3. Data Layer (`src/hooks/usePosts.ts`)
+Custom hook for post CRUD:
 ```typescript
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+function usePosts() {
+  return {
+    posts: Post[],
+    pillars: ContentPillar[],
+    loading: boolean,
+    error: string | null,
+    createPost: (post: Partial<Post>) => Promise<void>,
+    updatePost: (id: string, updates: Partial<Post>) => Promise<void>,
+    deletePost: (id: string) => Promise<void>,
+    refetch: () => Promise<void>,
+  }
+}
 ```
+- Fetch posts with pillar data (join or separate query)
+- Order by scheduled_for DESC, then created_at DESC
+- Real-time not needed in Phase 1
 
-### 4. Type Definitions
-Create `src/types/database.ts` with TypeScript types matching the Supabase schema:
-- ContentPillar, Post, PostAnalytics, AccountSnapshot, EngagementLog
-- Enums: PostType, PostStatus, EngagementType
+### 4. Status Flow
+Posts follow this lifecycle:
+- draft → scheduled (requires scheduled_for date)
+- scheduled → posted (set posted_at = now)
+- posted → archived
+- Any status → draft (reset)
 
-### 5. Authentication
-Create `src/contexts/AuthContext.tsx`:
-- AuthProvider wrapping the app
-- useAuth() hook returning: user, session, signIn(email, password), signUp(email, password), signOut, loading
-- Listen to auth state changes via supabase.auth.onAuthStateChange
-- Persist session automatically (Supabase handles this)
+Quick status change buttons on each card for common transitions.
 
-Create `src/pages/Login.tsx`:
-- Simple email/password login form
-- Sign up link/toggle
-- Error display
-- Redirect to dashboard on success
-
-### 6. Routing
-Create `src/App.tsx` with React Router:
-- `/login` → Login page
-- `/` → Dashboard (protected, redirect to /login if not authenticated)
-- `/calendar` → Content Calendar (protected)
-- `/create` → Create Post (protected)
-- `/analytics` → Analytics Dashboard (protected)
-
-Create `src/components/ProtectedRoute.tsx`:
-- Wraps protected routes
-- Redirects to /login if no session
-- Shows loading spinner while checking auth
-
-### 7. Layout
-Create `src/components/Layout.tsx`:
-- Sidebar navigation with links to all pages
-- Top bar with user info and sign out button
-- Responsive: sidebar collapses to hamburger on mobile
-- Active route highlighting
-- App name "X Growth Engine" with logo placeholder
-
-Create `src/pages/Dashboard.tsx`:
-- Placeholder page with welcome message
-- Cards for quick stats (will be filled in later tasks)
-- Quick action buttons: "Create Post", "View Calendar", "Log Engagement"
-
-### 8. Environment Variables
-The `.env.local` file already exists with:
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
-
-Create `.env.example` with placeholder values for documentation.
+### 5. Delete Confirmation
+Simple confirmation dialog before deleting a post.
 
 ## File Structure
 ```
 src/
-├── App.tsx
-├── main.tsx
-├── index.css
-├── vite-env.d.ts
 ├── components/
-│   ├── Layout.tsx
-│   └── ProtectedRoute.tsx
-├── contexts/
-│   └── AuthContext.tsx
+│   ├── PostModal.tsx        (NEW - create/edit modal)
+│   └── DeleteConfirm.tsx    (NEW - delete confirmation)
 ├── hooks/
-│   └── useAuth.ts (re-export from context)
-├── lib/
-│   └── supabase.ts
-├── pages/
-│   ├── Login.tsx
-│   ├── Dashboard.tsx
-│   ├── Calendar.tsx (placeholder)
-│   ├── CreatePost.tsx (placeholder)
-│   └── Analytics.tsx (placeholder)
-├── types/
-│   └── database.ts
-└── styles/
-    └── (Tailwind handles this)
+│   └── usePosts.ts          (NEW - post CRUD hook)
+└── pages/
+    └── Calendar.tsx          (REPLACE - full calendar page)
 ```
 
 ## Acceptance Criteria
-- [ ] `npm run dev` starts without errors
-- [ ] `npm run build` completes without errors
-- [ ] Tailwind CSS classes render correctly
-- [ ] Supabase client initializes without errors
-- [ ] Login page renders with email/password form
-- [ ] Protected routes redirect to login when not authenticated
-- [ ] Layout has working sidebar navigation
-- [ ] Dashboard shows placeholder content
-- [ ] All TypeScript types match the database schema
-- [ ] No TypeScript errors (`npx tsc --noEmit` passes)
+- [ ] Calendar page displays posts from Supabase
+- [ ] Can create a new post via modal
+- [ ] Can edit an existing post
+- [ ] Can delete a post (with confirmation)
+- [ ] Can filter by status
+- [ ] Can filter by pillar
+- [ ] Pillar distribution bar shows correct percentages
+- [ ] Status badges are color-coded
+- [ ] Character count shows for tweet content
+- [ ] Scheduled datetime picker appears only when status=scheduled
+- [ ] X Post URL field appears only when status=posted
+- [ ] Empty state shown when no posts match filters
+- [ ] No TypeScript errors
+- [ ] Build passes (`npm run build`)
 
 ## Important Notes
+- Do NOT modify Layout.tsx, AuthContext.tsx, or supabase.ts
 - Do NOT modify any files in `supabase/` directory
-- Do NOT modify `.env.local` 
-- The app should work immediately with `npm run dev` after setup
-- Keep the design clean and modern - dark theme preferred
+- Match the existing design system (dark theme, cyan accents, rounded cards)
+- Use the existing types from `src/types/database.ts`
+- All Supabase queries should handle errors gracefully
