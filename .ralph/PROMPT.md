@@ -1,111 +1,134 @@
-# Task 1: Supabase Database Schema
+# Task 2: React App Scaffolding
 
 ## Objective
-Create the complete Supabase database schema for the X Growth Engine platform.
+Set up a complete React application with Vite, Tailwind CSS, Supabase client, authentication, and routing.
 
 ## Context
-X Growth Engine is a content strategy + automation platform for growing an X (Twitter) account. Phase 1 is a manual-first tool: user creates content with AI assistance, manages a content calendar, and tracks analytics manually.
+X Growth Engine is a content strategy platform for growing an X (Twitter) account. The Supabase backend is already set up with 5 tables (content_pillars, posts, post_analytics, account_snapshots, engagement_log). Now we need the frontend foundation.
+
+## Tech Stack
+- **React 18** with TypeScript
+- **Vite** as build tool
+- **Tailwind CSS v3** for styling
+- **React Router v6** for routing
+- **Supabase JS client** (@supabase/supabase-js v2)
+- **Lucide React** for icons
 
 ## Requirements
 
-### Tables to Create
+### 1. Initialize Vite + React + TypeScript
+- Run `npm create vite@latest . -- --template react-ts` (use current directory)
+- Install all dependencies
 
-#### 1. `content_pillars`
-- `id` UUID PK default gen_random_uuid()
-- `name` TEXT NOT NULL UNIQUE
-- `description` TEXT
-- `color` TEXT (hex color for UI)
-- `target_percentage` INTEGER (target % of total content)
-- `created_at` TIMESTAMPTZ default now()
+### 2. Tailwind CSS Setup
+- Install and configure Tailwind CSS v3
+- Create a clean base stylesheet with sensible defaults
+- Dark mode support via class strategy
 
-Seed data:
-- AI & Vibecoding (40%, #8B5CF6)
-- OpenClaw (25%, #06B6D4)
-- Crypto & AI (20%, #F59E0B)
-- Engagement & Community (15%, #10B981)
+### 3. Supabase Client
+Create `src/lib/supabase.ts`:
+```typescript
+import { createClient } from '@supabase/supabase-js'
 
-#### 2. `posts`
-- `id` UUID PK default gen_random_uuid()
-- `pillar_id` UUID FK → content_pillars.id
-- `content` TEXT NOT NULL
-- `post_type` post_type_enum NOT NULL
-- `status` post_status_enum NOT NULL default 'draft'
-- `scheduled_for` TIMESTAMPTZ
-- `posted_at` TIMESTAMPTZ
-- `x_post_url` TEXT (manual paste after posting)
-- `ai_generated` BOOLEAN default false
-- `ai_prompt` TEXT (the prompt used to generate)
-- `notes` TEXT
-- `created_at` TIMESTAMPTZ default now()
-- `updated_at` TIMESTAMPTZ default now()
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-#### 3. `post_analytics`
-- `id` UUID PK default gen_random_uuid()
-- `post_id` UUID FK → posts.id UNIQUE
-- `impressions` INTEGER default 0
-- `likes` INTEGER default 0
-- `retweets` INTEGER default 0
-- `replies` INTEGER default 0
-- `bookmarks` INTEGER default 0
-- `profile_clicks` INTEGER default 0
-- `link_clicks` INTEGER default 0
-- `engagement_rate` DECIMAL(5,2) (calculated: (likes+retweets+replies+bookmarks)/impressions*100)
-- `recorded_at` TIMESTAMPTZ default now()
-- `updated_at` TIMESTAMPTZ default now()
-
-#### 4. `account_snapshots`
-- `id` UUID PK default gen_random_uuid()
-- `date` DATE NOT NULL UNIQUE
-- `followers` INTEGER NOT NULL
-- `following` INTEGER NOT NULL
-- `total_posts` INTEGER
-- `impressions_today` INTEGER
-- `profile_visits` INTEGER
-- `notes` TEXT
-- `created_at` TIMESTAMPTZ default now()
-
-#### 5. `engagement_log`
-- `id` UUID PK default gen_random_uuid()
-- `action_type` engagement_type_enum NOT NULL
-- `target_account` TEXT (@ handle of account engaged with)
-- `target_post_url` TEXT
-- `notes` TEXT
-- `created_at` TIMESTAMPTZ default now()
-
-### Enums
-
-```sql
-CREATE TYPE post_type_enum AS ENUM ('tweet', 'thread', 'reply', 'quote', 'poll');
-CREATE TYPE post_status_enum AS ENUM ('draft', 'scheduled', 'posted', 'archived');
-CREATE TYPE engagement_type_enum AS ENUM ('reply', 'quote', 'like', 'retweet', 'follow', 'dm');
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 ```
 
-### Indexes
-- `posts.status` (filter by status)
-- `posts.scheduled_for` (sort by schedule)
-- `posts.pillar_id` (filter by pillar)
-- `account_snapshots.date` (sort by date)
-- `engagement_log.created_at` (sort by date)
+### 4. Type Definitions
+Create `src/types/database.ts` with TypeScript types matching the Supabase schema:
+- ContentPillar, Post, PostAnalytics, AccountSnapshot, EngagementLog
+- Enums: PostType, PostStatus, EngagementType
 
-### RLS (Row Level Security)
-- Enable RLS on all tables
-- For Phase 1 (single user): allow all operations for authenticated users
-- Policy: `auth.role() = 'authenticated'`
+### 5. Authentication
+Create `src/contexts/AuthContext.tsx`:
+- AuthProvider wrapping the app
+- useAuth() hook returning: user, session, signIn(email, password), signUp(email, password), signOut, loading
+- Listen to auth state changes via supabase.auth.onAuthStateChange
+- Persist session automatically (Supabase handles this)
 
-### Additional
-- `updated_at` trigger function for automatic timestamp updates
-- All migrations in `supabase/migrations/` directory
-- Single migration file: `001_initial_schema.sql`
+Create `src/pages/Login.tsx`:
+- Simple email/password login form
+- Sign up link/toggle
+- Error display
+- Redirect to dashboard on success
 
-## Output
-Create file: `supabase/migrations/001_initial_schema.sql`
+### 6. Routing
+Create `src/App.tsx` with React Router:
+- `/login` → Login page
+- `/` → Dashboard (protected, redirect to /login if not authenticated)
+- `/calendar` → Content Calendar (protected)
+- `/create` → Create Post (protected)
+- `/analytics` → Analytics Dashboard (protected)
+
+Create `src/components/ProtectedRoute.tsx`:
+- Wraps protected routes
+- Redirects to /login if no session
+- Shows loading spinner while checking auth
+
+### 7. Layout
+Create `src/components/Layout.tsx`:
+- Sidebar navigation with links to all pages
+- Top bar with user info and sign out button
+- Responsive: sidebar collapses to hamburger on mobile
+- Active route highlighting
+- App name "X Growth Engine" with logo placeholder
+
+Create `src/pages/Dashboard.tsx`:
+- Placeholder page with welcome message
+- Cards for quick stats (will be filled in later tasks)
+- Quick action buttons: "Create Post", "View Calendar", "Log Engagement"
+
+### 8. Environment Variables
+The `.env.local` file already exists with:
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Create `.env.example` with placeholder values for documentation.
+
+## File Structure
+```
+src/
+├── App.tsx
+├── main.tsx
+├── index.css
+├── vite-env.d.ts
+├── components/
+│   ├── Layout.tsx
+│   └── ProtectedRoute.tsx
+├── contexts/
+│   └── AuthContext.tsx
+├── hooks/
+│   └── useAuth.ts (re-export from context)
+├── lib/
+│   └── supabase.ts
+├── pages/
+│   ├── Login.tsx
+│   ├── Dashboard.tsx
+│   ├── Calendar.tsx (placeholder)
+│   ├── CreatePost.tsx (placeholder)
+│   └── Analytics.tsx (placeholder)
+├── types/
+│   └── database.ts
+└── styles/
+    └── (Tailwind handles this)
+```
 
 ## Acceptance Criteria
-- [ ] All 5 tables created with correct columns and types
-- [ ] All 3 enums created
-- [ ] Foreign keys with proper ON DELETE behavior (CASCADE for post_analytics, SET NULL for posts.pillar_id)
-- [ ] All indexes created
-- [ ] RLS enabled on all tables with authenticated user policies
-- [ ] updated_at trigger function created and applied
-- [ ] Seed data for content_pillars inserted
-- [ ] SQL is valid and can run against a fresh Supabase instance
+- [ ] `npm run dev` starts without errors
+- [ ] `npm run build` completes without errors
+- [ ] Tailwind CSS classes render correctly
+- [ ] Supabase client initializes without errors
+- [ ] Login page renders with email/password form
+- [ ] Protected routes redirect to login when not authenticated
+- [ ] Layout has working sidebar navigation
+- [ ] Dashboard shows placeholder content
+- [ ] All TypeScript types match the database schema
+- [ ] No TypeScript errors (`npx tsc --noEmit` passes)
+
+## Important Notes
+- Do NOT modify any files in `supabase/` directory
+- Do NOT modify `.env.local` 
+- The app should work immediately with `npm run dev` after setup
+- Keep the design clean and modern - dark theme preferred
